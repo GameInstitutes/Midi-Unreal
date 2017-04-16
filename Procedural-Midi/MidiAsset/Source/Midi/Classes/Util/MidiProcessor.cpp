@@ -20,6 +20,12 @@ MidiProcessor::MidiProcessor(): PlaySpeed(1.0) {
 
 MidiProcessor::~MidiProcessor()
 {
+	if (Runnable) {
+		Runnable->Stop();
+		delete Runnable;
+	}
+	Runnable = NULL;
+
 	if (mMetronome)
 		delete mMetronome;
 	mMetronome = NULL;
@@ -54,6 +60,14 @@ void MidiProcessor::start() {
 	mRunning = true;
 
 	mListener->onStart(mMsElapsed == 0);
+
+	if (Runnable) {
+		Runnable->Stop();
+		delete Runnable;
+	}
+	Runnable = NULL;
+
+	Runnable = new FMidiProcessorWorker(this);
 }
 
 void MidiProcessor::stop() {
@@ -157,4 +171,44 @@ void MidiProcessor::process() {
 	mRunning = false;
 	mListener->onStop(true);
 
+}
+
+
+FMidiProcessorWorker::FMidiProcessorWorker(MidiProcessor* IN_PC)
+	: ThePC(IN_PC)
+{
+
+	Thread = FRunnableThread::Create(this, TEXT("FMidiProcessorWorker"), 0, TPri_BelowNormal); //windows default = 8mb for thread, could specify more
+}
+
+FMidiProcessorWorker::~FMidiProcessorWorker()
+{
+	delete Thread;
+	Thread = NULL;
+}
+
+//Init
+bool FMidiProcessorWorker::Init()
+{
+	return true;
+}
+
+//Run
+uint32 FMidiProcessorWorker::Run()
+{
+	while (!IsFinished())
+	{
+		ThePC->process();
+		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		//prevent thread from using too many resources
+		FPlatformProcess::Sleep(0.008);
+		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	}
+	return 0;
+}
+
+//stop
+void FMidiProcessorWorker::Stop()
+{
+	Thread->WaitForCompletion();
 }

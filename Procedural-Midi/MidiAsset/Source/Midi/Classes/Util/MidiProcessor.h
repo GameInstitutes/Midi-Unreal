@@ -8,6 +8,8 @@
 #include "MetronomeTick.h"
 #include "MidiEventListener.h"
 
+class FMidiProcessorWorker;
+
 /**
 *	Loads and plays back a MIDI file
 */
@@ -115,4 +117,37 @@ private:
 			}
 		}
 	};
+
+	FMidiProcessorWorker* Runnable;
+};
+
+//~~~~~ Multi Threading ~~~
+class FMidiProcessorWorker : public FRunnable
+{
+	/** Thread to run the worker FRunnable on */
+	FRunnableThread* Thread;
+
+	/** The PC */
+	MidiProcessor* ThePC;
+
+public:
+
+	//Done?
+	bool IsFinished() const
+	{
+		return !ThePC->isRunning();
+	}
+
+	//~~~ Thread Core Functions ~~~
+
+	//Constructor / Destructor
+	FMidiProcessorWorker(MidiProcessor* IN_PC);
+	virtual ~FMidiProcessorWorker();
+
+	// Begin FRunnable interface.
+	virtual bool Init();
+	virtual uint32 Run();
+	virtual void Stop();
+	// End FRunnable interface
+
 };
